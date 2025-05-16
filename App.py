@@ -2,7 +2,9 @@ import streamlit as st
 import nltk
 import spacy
 nltk.download('stopwords')
-spacy.load('en_core_web_sm')
+nltk.download('punkt')
+
+nlp = spacy.load('en_core_web_sm')
 
 import pandas as pd
 import base64, random
@@ -16,7 +18,7 @@ from pdfminer3.converter import TextConverter
 import io, random
 from streamlit_tags import st_tags
 from PIL import Image
-import pymysql
+import sqlite3
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course, resume_videos, interview_videos
 import pafy
 import plotly.express as px
@@ -81,15 +83,14 @@ def course_recommender(course_list):
     return rec_course
 
 
-connection = pymysql.connect(host='localhost', user='root', password='')
+connection = sqlite3.connect("resume_parser.db")
 cursor = connection.cursor()
 
 
 def insert_data(name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills,
                 courses):
     DB_table_name = 'user_data'
-    insert_sql = "insert into " + DB_table_name + """
-    values (0,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+    insert_sql = f"INSERT INTO {DB_table_name} VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     rec_values = (
     name, email, str(res_score), timestamp, str(no_of_pages), reco_field, cand_level, skills, recommended_skills,
     courses)
@@ -115,26 +116,27 @@ def run():
     st.image(img)
 
     # Create the DB
-    db_sql = """CREATE DATABASE IF NOT EXISTS SRA;"""
-    cursor.execute(db_sql)
-    connection.select_db("sra")
+    # db_sql = """CREATE DATABASE IF NOT EXISTS SRA;"""
+    # cursor.execute(db_sql)
+    # connection.select_db("sra")
 
     # Create table
     DB_table_name = 'user_data'
-    table_sql = "CREATE TABLE IF NOT EXISTS " + DB_table_name + """
-                    (ID INT NOT NULL AUTO_INCREMENT,
-                     Name varchar(100) NOT NULL,
-                     Email_ID VARCHAR(50) NOT NULL,
-                     resume_score VARCHAR(8) NOT NULL,
-                     Timestamp VARCHAR(50) NOT NULL,
-                     Page_no VARCHAR(5) NOT NULL,
-                     Predicted_Field VARCHAR(25) NOT NULL,
-                     User_level VARCHAR(30) NOT NULL,
-                     Actual_skills VARCHAR(300) NOT NULL,
-                     Recommended_skills VARCHAR(300) NOT NULL,
-                     Recommended_courses VARCHAR(600) NOT NULL,
-                     PRIMARY KEY (ID));
-                    """
+    table_sql = f"""
+    CREATE TABLE IF NOT EXISTS {DB_table_name} (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Email_ID TEXT NOT NULL,
+    resume_score TEXT NOT NULL,
+    Timestamp TEXT NOT NULL,
+    Page_no TEXT NOT NULL,
+    Predicted_Field TEXT NOT NULL,
+    User_level TEXT NOT NULL,
+    Actual_skills TEXT NOT NULL,
+    Recommended_skills TEXT NOT NULL,
+    Recommended_courses TEXT NOT NULL
+);
+"""
     cursor.execute(table_sql)
     if choice == 'Normal User':
         # st.markdown('''<h4 style='text-align: left; color: #d73b5c;'>* Upload your resume, and get smart recommendation based on it."</h4>''',
