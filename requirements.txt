@@ -1,4 +1,4 @@
-pdfminer3
+
 pyresparser
 streamlit
 pandas
@@ -9,5 +9,5 @@ streamlit-tags
 Pillow
 youtube-dl
 nltk
-pdfminer3
-spacy
+pdfminer.six
+spacy==2.3.9

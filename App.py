@@ -5,7 +5,9 @@ nltk.download('stopwords')
 nltk.download('punkt')
 
 nlp = spacy.load('en_core_web_sm')
-
+import spacy
+import pyresparser.resume_parser
+from pyresparser import ResumeParser
 import pandas as pd
 import base64, random
 import time, datetime
@@ -149,6 +151,12 @@ def run():
             with open(save_image_path, "wb") as f:
                 f.write(pdf_file.getbuffer())
             show_pdf(save_image_path)
+           # Save original spaCy load function
+            original_spacy_load = spacy.load
+
+# Monkey patch only inside pyresparser
+            pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("en_core_web_sm")
+
             resume_data = ResumeParser(save_image_path).get_extracted_data()
             if resume_data:
                 ## Get the whole resume data
