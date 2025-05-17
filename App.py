@@ -27,11 +27,7 @@ from yt_dlp import YoutubeDL
 import plotly.express as px
 
 
-def fetch_yt_video(link):
-    ydl_opts = {}
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(link, download=False)
-        return info.get("title", "No Title Found")
+
 
 
 def get_table_download_link(df, filename, text):
@@ -387,14 +383,14 @@ def run():
                 ## Resume writing video
                 st.header("**Bonus Video for Resume Writing Tips💡**")
                 resume_vid = random.choice(resume_videos)
-                res_vid_title = fetch_yt_video(resume_vid)
+                res_vid_title = "Suggested for you"
                 st.subheader("✅ **" + res_vid_title + "**")
                 st.video(resume_vid)
 
                 ## Interview Preparation Video
                 st.header("**Bonus Video for Interview👨‍💼 Tips💡**")
                 interview_vid = random.choice(interview_videos)
-                int_vid_title = fetch_yt_video(interview_vid)
+                int_vid_title ="Interview tips"
                 st.subheader("✅ **" + int_vid_title + "**")
                 st.video(interview_vid)
 
@@ -410,7 +406,7 @@ def run():
         ad_password = st.text_input("Password", type='password')
         if st.button('Login'):
             if ad_user == 'machine_learning_hub' and ad_password == 'mlhub123':
-                st.success("Welcome Kushal")
+                st.success("Welcome Diya")
                 # Display Data
                 cursor.execute('''SELECT*FROM user_data''')
                 data = cursor.fetchall()

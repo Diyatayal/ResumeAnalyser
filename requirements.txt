@@ -1,8 +1,8 @@
 
 pyresparser
 streamlit
-pandas
-pafy
+pandas==1.3.5
+
 plotly
 pymysql
 streamlit-tags
@@ -11,3 +11,4 @@ youtube-dl
 nltk
 pdfminer.six
 spacy==2.3.9
+numpy==1.19.5
