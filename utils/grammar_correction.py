@@ -15,11 +15,6 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 # Setup Gemini model
 model = GenerativeModel("gemini-1.5-flash")  # Use 'gemini-flash' if needed
 
-# --- Streamlit UI ---
-st.title("📄 Resume Grammar & Spelling Checker")
-uploaded_file = st.file_uploader("Upload your resume (PDF)", type="pdf")
-
-
 def extract_text_from_pdf(uploaded_file) -> str:
     """
     Save uploaded PDF temporarily and extract full text.
@@ -177,26 +172,154 @@ def display_cover_letter(cover_letter: str):
         """
     st.markdown(styled_html, unsafe_allow_html=True)
 
-if uploaded_file:
-    extracted_text = extract_text_from_pdf(uploaded_file)
-    preprocessed_text = preprocess_resume_text(extracted_text)
-    gemini_response = get_grammar_suggestions_from_gemini(preprocessed_text)
-    
-    if gemini_response:
-        # st.text(gemini_response)
-        mistakes = extract_mistakes_from_gemini(gemini_response)
-        st.subheader("Grammer and spelling errors")
-        for line in gemini_response.strip().split("\n"):
-            if "->" in line:
-                st.markdown(f"🔸 `{line.strip()}`")
-        st.subheader("Highlighted PDF with mistakes")
-        uploaded_file.seek(0)
-        highlighted_pdf_path = highlight_mistakes_in_pdf(uploaded_file,mistakes)
-        display_pdf(highlighted_pdf_path)
+def get_ats_feedback_from_gemini(resume_text: str, job_description: str) -> dict:
+    """
+    Sends resume and job description to Gemini and returns:
+    - ATS score (out of 100)
+    - Strong points in the resume
+    - Weaknesses/improvements in the resume
+    """
+    prompt = f"""
+    You are an skilled ATS (Applicant Tracking System) scanner with a deep understanding of Data science or Full Stack Web Development or Big Data or Cloud Engineering or Android Development or IOS Development or Any field that is relevent to user's resume and ATS functionality, 
+    your task is to evaluate the resume against the provided job description.
 
-        st.subheader("You can also create a personalized Cover Letter on the basis of you current resume")
-        job_desc = st.text_input("Paste your job description here")
+    Please follow this **strict format** exactly so it is easy to parse:
 
-        if job_desc:
-            generated_cover_letter = generate_cover_letter_with_gemini(preprocessed_text,job_desc)
-            display_cover_letter(generated_cover_letter)
+    ATS Score: <score out of 100>
+
+    Strong Points:
+    - <strong point 1>
+    - <strong point 2>
+    ...
+
+    Weaknesses / Areas to Improve:
+    - <weakness 1>
+    - <weakness 2>
+    ...
+
+    Only use the above format. Do not include explanations or any additional text outside of these sections.
+
+    Resume:
+    {resume_text}
+
+    Job Description:
+    {job_description}
+    """
+
+    response = model.generate_content(prompt)
+    raw_output = response.text.strip()
+
+    # You may optionally parse the output into a dictionary
+    return raw_output
+
+def parse_ats_feedback(text: str) -> dict:
+    """
+    Parses the plain text ATS feedback from Gemini into a structured dictionary.
+    Expected format:
+    ATS Score: <score>
+
+    Strong Points:
+    - point1
+    - point2
+    ...
+
+    Weaknesses / Areas to Improve:
+    - point1
+    - point2
+    ...
+    """
+    lines = text.strip().splitlines()
+    score = None
+    strengths = []
+    weaknesses = []
+    section = None
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith("ATS Score:"):
+            try:
+                score = int(line.split(":")[1].strip())
+            except ValueError:
+                score = None
+        elif line.startswith("Strong Points"):
+            section = "strengths"
+        elif line.startswith("Weaknesses") or line.startswith("Areas to Improve"):
+            section = "weaknesses"
+        elif line.startswith("- "):
+            if section == "strengths":
+                strengths.append(line[2:].strip())
+            elif section == "weaknesses":
+                weaknesses.append(line[2:].strip())
+
+    return {
+        "score": score,
+        "strengths": strengths,
+        "weaknesses": weaknesses
+    }
+
+def display_ats():
+
+    # --- Streamlit UI ---
+    st.title("📄 ATS Scorer & Analyzer")
+    job_text = st.text_input("Paste your job description here")
+    uploaded_file = st.file_uploader("Upload your resume (PDF)", type="pdf")
+
+    if uploaded_file:
+        st.success("Pdf uploaded sucessfully")
+
+    checkATS_button = st.button("Check ATS score")
+
+    if checkATS_button: 
+
+        if uploaded_file and job_text:
+            extracted_text = extract_text_from_pdf(uploaded_file)
+            preprocessed_text = preprocess_resume_text(extracted_text)
+            gemini_response = get_ats_feedback_from_gemini(preprocessed_text,job_text)
+            parsed_response = parse_ats_feedback(gemini_response)
+            
+        
+            st.subheader("✅ ATS Score")
+            st.markdown(f"**Score:** {parsed_response['score']} / 100")
+
+            st.subheader("💪 Strong Points")
+            for point in parsed_response["strengths"]:
+                st.markdown(f"- {point}")
+
+            st.subheader("⚠️ Weaknesses / Areas to Improve")
+            for point in parsed_response["weaknesses"]:
+                st.markdown(f"- {point}")
+        else:
+            st.warning("Please upload your resume and Job description")
+
+def display_grammer():
+ 
+    st.title("📄 Grammer and Spelling Check")
+    uploaded_file = st.file_uploader("Upload your resume (PDF)", type="pdf")
+
+    if uploaded_file:
+        extracted_text = extract_text_from_pdf(uploaded_file)
+        preprocessed_text = preprocess_resume_text(extracted_text)
+        gemini_response = get_grammar_suggestions_from_gemini(preprocessed_text)
+        
+        if gemini_response:
+            # st.text(gemini_response)
+            mistakes = extract_mistakes_from_gemini(gemini_response)
+            st.subheader("Grammer and spelling errors")
+
+            for line in gemini_response.strip().split("\n"):
+                if "->" in line:
+                    st.markdown(f"🔸 `{line.strip()}`")
+                    
+            st.subheader("Highlighted PDF with mistakes")
+            uploaded_file.seek(0)
+            highlighted_pdf_path = highlight_mistakes_in_pdf(uploaded_file,mistakes)
+            display_pdf(highlighted_pdf_path)
+
+            st.subheader("You can also create a personalized Cover Letter on the basis of you current resume")
+            job_desc = st.text_input("Paste your job description here")
+
+            if job_desc:
+                generated_cover_letter = generate_cover_letter_with_gemini(preprocessed_text,job_desc)
+                display_cover_letter(generated_cover_letter)
+display_ats()
+# display_grammer()
