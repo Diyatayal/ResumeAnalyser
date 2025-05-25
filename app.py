@@ -14,7 +14,7 @@ elif app_mode == "ATS Score Check":
     ats_check.run()
 
 elif app_mode == "Grammar Checker":
-    grammer_checker.run()
+    grammar_checker.run()
 
 elif app_mode == "Find Jobs":
     jobs.run()
