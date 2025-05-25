@@ -5,9 +5,8 @@ nltk.download('stopwords')
 nltk.download('punkt')
 nlp = spacy.load('en_core_web_sm')
 import sqlite3
-import pandas as pd
 import base64, random
-import time, datetime
+import time, datetime,re
 import pyresparser.resume_parser
 from pyresparser import ResumeParser
 from pdfminer.layout import LAParams, LTTextBox
@@ -20,21 +19,6 @@ from streamlit_tags import st_tags
 from PIL import Image
 # import pymysql
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course, resume_videos, interview_videos
-import plotly.express as px
-import  re
-
-
-def get_table_download_link(df, filename, text):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded
-    in:  dataframe
-    out: href string
-    """
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-    # href = f'<a href="data:file/csv;base64,{b64}">Download Report</a>'
-    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">{text}</a>'
-    return href
-
 
 def pdf_reader(file):
     resource_manager = PDFResourceManager()
@@ -76,21 +60,6 @@ def course_recommender(course_list):
         if c == no_of_reco:
             break
     return rec_course
-
-
-connection = sqlite3.connect("resume_parser.db",check_same_thread=False)
-cursor = connection.cursor()
-
-
-def insert_data(name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills,
-                courses):
-    DB_table_name = 'user_data'
-    insert_sql = f"INSERT INTO {DB_table_name} VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    rec_values = (
-    name, email, str(res_score), timestamp, str(no_of_pages), reco_field, cand_level, skills, recommended_skills,
-    courses)
-    cursor.execute(insert_sql, rec_values)
-    connection.commit()
 
 def get_word_count(resume_text):
     doc = nlp(resume_text)
@@ -164,7 +133,21 @@ def analyze_resume(resume_text):
         "experience": exp_years if exp_years is not None else 0,
         "skills": skills_found,
         "suggestions": suggestions
-    }
+        }
+
+connection = sqlite3.connect("resume_parser.db",check_same_thread=False)
+cursor = connection.cursor()
+
+
+def insert_data(name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills,
+                courses):
+    DB_table_name = 'user_data'
+    insert_sql = f"INSERT INTO {DB_table_name} VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    rec_values = (
+    name, email, str(res_score), timestamp, str(no_of_pages), reco_field, cand_level, skills, recommended_skills,
+    courses)
+    cursor.execute(insert_sql, rec_values)
+    connection.commit()
 
 
 
@@ -194,20 +177,20 @@ def run():
                 );
                 """
 
-
-
     cursor.execute(table_sql)
       
-    pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
-    if pdf_file is not None:
+    uploaded_file = st.file_uploader("Choose your Resume", type=["pdf"])
+    if uploaded_file is not None:
         # with st.spinner('Uploading your Resume....'):
         #     time.sleep(4)
-        save_image_path = './Uploaded_Resumes/' + pdf_file.name
+        save_image_path = './Uploaded_Resumes/' + uploaded_file.name
         with open(save_image_path, "wb") as f:
-            f.write(pdf_file.getbuffer())
+            f.write(uploaded_file.getbuffer())
         show_pdf(save_image_path)
 
-        
+        original_spacy_load = spacy.load
+        # Monkey patch only inside pyresparser
+        pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("en_core_web_sm")
         
         resume_data = ResumeParser(save_image_path).get_extracted_data()
         if resume_data:
@@ -264,29 +247,28 @@ def run():
             for i in resume_data['skills']:
                 ## Data science recommendation
                 if i.lower() in ds_keyword:
-                   reco_field = 'Data Science'
-                   st.success("**Our analysis says you are looking for Data Science Jobs.**")
-                   recommended_skills = ['Data Visualization', 'Predictive Analysis', 'Statistical Modeling',
-                          'Data Mining', 'R programming','SQL','Clustering & Classification', 'Data Analytics',
-                          'Quantitative Analysis', 'Web Scraping', 'ML Algorithms', 'Keras',
-                          'Pytorch', 'Probability', 'Scikit-learn', 'Tensorflow', "Flask",
-                          'Streamlit']
-    
-                   existing_skills = [skill.lower() for skill in resume_data['skills']]
-                   missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
-
-                   if missing_skills:
-                      recommended_keywords = st_tags(label='### Recommended skills for you.',
-                                                     text='Recommended skills generated from System',
-                                                     value=missing_skills, key='2')
-                      st.markdown(
-                             '''<h4 style='text-align: left; color: #1ed760;'>Adding these skills to your resume will boost🚀 your chances of getting a Job💼</h4>''',
-                            unsafe_allow_html=True)
-    
-                   rec_course = course_recommender(ds_course)
-                   break
-
+                    print(i.lower())
+                    reco_field = 'Data Science'
+                    st.success("** Our analysis says you are looking for Data Science Jobs.**")
+                    recommended_skills = ['Data Visualization', 'Predictive Analysis', 'Statistical Modeling',
+                                            'Data Mining', 'Clustering & Classification', 'Data Analytics',
+                                            'Quantitative Analysis', 'Web Scraping', 'ML Algorithms', 'Keras',
+                                            'Pytorch', 'Probability', 'Scikit-learn', 'Tensorflow', "Flask",
+                                            'Streamlit']
                     
+                    existing_skills = [skill.lower() for skill in resume_data['skills']]
+                    missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
+
+                    if missing_skills:
+                        recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=missing_skills, key='2')
+
+                    st.markdown(
+                        '''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',
+                        unsafe_allow_html=True)
+                    rec_course = course_recommender(ds_course)
+                    break
 
                 ## Web development recommendation
                 elif i.lower() in web_keyword:
@@ -295,19 +277,22 @@ def run():
                     st.success("** Our analysis says you are looking for Web Development Jobs **")
                     recommended_skills = ['React', 'Django', 'Node JS', 'React JS', 'php', 'laravel', 'Magento',
                                             'wordpress', 'Javascript', 'Angular JS', 'c#', 'Flask', 'SDK']
+                    
+                    
                     existing_skills = [skill.lower() for skill in resume_data['skills']]
                     missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
 
                     if missing_skills:
-                      recommended_keywords = st_tags(label='### Recommended skills for you.',
-                                                     text='Recommended skills generated from System',
-                                                     value=missing_skills, key='3')
-                      st.markdown(
-                             '''<h4 style='text-align: left; color: #1ed760;'>Adding these skills to your resume will boost🚀 your chances of getting a Job💼</h4>''',
-                            unsafe_allow_html=True)
-    
+                        recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=missing_skills, key='2')
+                        
+                    st.markdown(
+                        '''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',
+                        unsafe_allow_html=True)
                     rec_course = course_recommender(web_course)
                     break
+
                 ## Android App Development
                 elif i.lower() in android_keyword:
                     print(i.lower())
@@ -315,17 +300,22 @@ def run():
                     st.success("** Our analysis says you are looking for Android App Development Jobs **")
                     recommended_skills = ['Android', 'Android development', 'Flutter', 'Kotlin', 'XML', 'Java',
                                             'Kivy', 'GIT', 'SDK', 'SQLite']
+                    recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=recommended_skills, key='4')
+                    
+                    
                     existing_skills = [skill.lower() for skill in resume_data['skills']]
                     missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
 
                     if missing_skills:
-                      recommended_keywords = st_tags(label='### Recommended skills for you.',
-                                                     text='Recommended skills generated from System',
-                                                     value=missing_skills, key='4')
-                      st.markdown(
-                             '''<h4 style='text-align: left; color: #1ed760;'>Adding these skills to your resume will boost🚀 your chances of getting a Job💼</h4>''',
-                            unsafe_allow_html=True)
-    
+                        recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=missing_skills, key='2')
+                        
+                    st.markdown(
+                        '''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',
+                        unsafe_allow_html=True)
                     rec_course = course_recommender(android_course)
                     break
 
@@ -337,17 +327,18 @@ def run():
                     recommended_skills = ['IOS', 'IOS Development', 'Swift', 'Cocoa', 'Cocoa Touch', 'Xcode',
                                             'Objective-C', 'SQLite', 'Plist', 'StoreKit', "UI-Kit", 'AV Foundation',
                                             'Auto-Layout']
+ 
+                    
                     existing_skills = [skill.lower() for skill in resume_data['skills']]
                     missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
 
                     if missing_skills:
-                      recommended_keywords = st_tags(label='### Recommended skills for you.',
-                                                     text='Recommended skills generated from System',
-                                                     value=missing_skills, key='5')
-                      st.markdown(
-                             '''<h4 style='text-align: left; color: #1ed760;'>Adding these skills to your resume will boost🚀 your chances of getting a Job💼</h4>''',
-                            unsafe_allow_html=True)
-    
+                        recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=missing_skills, key='2')
+                    st.markdown(
+                        '''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',
+                        unsafe_allow_html=True)
                     rec_course = course_recommender(ios_course)
                     break
 
@@ -360,20 +351,21 @@ def run():
                                             'Prototyping', 'Wireframes', 'Storyframes', 'Adobe Photoshop', 'Editing',
                                             'Illustrator', 'After Effects', 'Premier Pro', 'Indesign', 'Wireframe',
                                             'Solid', 'Grasp', 'User Research']
+                    
+                    
                     existing_skills = [skill.lower() for skill in resume_data['skills']]
                     missing_skills = [skill for skill in recommended_skills if skill.lower() not in existing_skills]
 
                     if missing_skills:
-                      recommended_keywords = st_tags(label='### Recommended skills for you.',
-                                                     text='Recommended skills generated from System',
-                                                     value=missing_skills, key='2')
-                      st.markdown(
-                             '''<h4 style='text-align: left; color: #1ed760;'>Adding these skills to your resume will boost🚀 your chances of getting a Job💼</h4>''',
-                            unsafe_allow_html=True)
-    
+                        recommended_keywords = st_tags(label='### Recommended skills for you.',
+                                                    text='Recommended skills generated from System',
+                                                    value=missing_skills, key='2')
+                        
+                    st.markdown(
+                        '''<h4 style='text-align: left; color: #1ed760;'>Adding this skills to resume will boost🚀 the chances of getting a Job💼</h4>''',
+                        unsafe_allow_html=True)
                     rec_course = course_recommender(uiux_course)
                     break
-                
 
             #
             ## Insert into table
@@ -383,8 +375,7 @@ def run():
             timestamp = str(cur_date + '_' + cur_time)
 
             ### Resume writing recommendation
-            st.subheader("**Resume Tips & ATS Score 💡📝**")
-                        # -------------------- ATS Score Analysis -------------------- #
+            st.subheader("**Resume Tips & Ideas💡**")
             st.subheader("📊 ATS Resume Score")
             analysis_result = analyze_resume(resume_text)
 
@@ -401,16 +392,14 @@ def run():
             if analysis_result["suggestions"]:
                 st.warning("💡 Suggestions to Improve Your Resume:")
                 for suggestion in analysis_result["suggestions"]:
-                    st.markdown(f"- {suggestion}")
+                    st.markdown(f"-{suggestion}")
 
+            st.warning(
+                "** Note: This score is calculated based on the content that you have added in your Resume. **")
 
-
-
-
-          
-
-
-            
+            insert_data(resume_data['name'], resume_data['email'], str(analysis_result['score']), timestamp,
+                        str(resume_data['no_of_pages']), reco_field, cand_level, str(resume_data['skills']),
+                        str(recommended_skills), str(rec_course))
 
             ## Resume writing video
             st.header("**Bonus Video for Resume Writing Tips💡**")
@@ -421,7 +410,7 @@ def run():
             st.video(resume_vid)
 
             ## Interview Preparation Video
-            st.header("**Bonus Video for Interview👨‍💼 Tips💡**")
+            st.header("**Bonus Video for Interview👨 Tips💡**")
             interview_vid = random.choice(interview_videos)
             # int_vid_title = fetch_yt_video(interview_vid)
             int_vid_title = "Recommended"
