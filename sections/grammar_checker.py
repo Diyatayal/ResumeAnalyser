@@ -8,6 +8,7 @@ import tempfile
 from io import BytesIO
 from google.generativeai import GenerativeModel
 import google.generativeai as genai
+from PIL import Image
 
 # Set your Gemini API key
 load_dotenv()
@@ -114,12 +115,11 @@ def highlight_mistakes_in_pdf(uploaded_file, mistakes):
     return highlighted_pdf_path
 
 def display_pdf(file_path):
-    with open(file_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode("utf-8")
-    pdf_display = f"""
-    <iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf"></iframe>
-    """
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    doc = fitz.open(file_path)
+    for page in doc:
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        st.image(img)
 
 def run():
  
