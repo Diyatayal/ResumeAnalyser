@@ -3,7 +3,7 @@ import nltk
 import spacy
 nltk.download('stopwords')
 nltk.download('punkt')
-nlp = spacy.load('sections/models/en_core_web_sm')
+nlp = spacy.load('./sections/models/en_core_web_sm')
 import sqlite3
 import base64, random
 import time, datetime,re
@@ -192,7 +192,7 @@ def run():
         # Monkey patch only inside pyresparser
       
         # Monkey patch only inside pyresparser
-        pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("sections/models/en_core_web_sm")
+        pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("./sections/models/en_core_web_sm")
 
         
         resume_data = ResumeParser(save_image_path).get_extracted_data()
