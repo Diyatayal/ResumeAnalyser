@@ -164,8 +164,8 @@ def run():
     table_sql = f"""
                 CREATE TABLE IF NOT EXISTS {DB_table_name} (
                 ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name TEXT NOT NULL,
-                Email_ID TEXT NOT NULL,
+                Name TEXT,
+                Email_ID TEXT,
                 resume_score TEXT NOT NULL,
                 Timestamp TEXT NOT NULL,
                 Page_no TEXT NOT NULL,
