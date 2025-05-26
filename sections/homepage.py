@@ -188,9 +188,12 @@ def run():
             f.write(uploaded_file.getbuffer())
         show_pdf(save_image_path)
 
+        
         original_spacy_load = spacy.load
         # Monkey patch only inside pyresparser
-        pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("en_core_web_sm")
+        pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("sections/models/en_core_web_sm/en_core_web_sm-2.3.1")
+        # Monkey patch only inside pyresparser
+        
         
         resume_data = ResumeParser(save_image_path).get_extracted_data()
         if resume_data:
