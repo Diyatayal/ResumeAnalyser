@@ -5,21 +5,19 @@ nltk.download('stopwords')
 nltk.download('punkt')
 nlp = spacy.load('sections/models/en_core_web_sm/en_core_web_sm-2.3.1')
 import sqlite3
-import base64, random
+import random
 import time, datetime,re
 import pyresparser.resume_parser
 from pyresparser import ResumeParser
-from pdfminer.layout import LAParams, LTTextBox
+from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 import io, random
+import fitz
 from streamlit_tags import st_tags
 from PIL import Image
-import os
-from pdf2image import convert_from_path
-# import pymysql
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course, resume_videos, interview_videos
 
 def pdf_reader(file):
@@ -41,14 +39,13 @@ def pdf_reader(file):
     return text
 
 
+def show_pdf(file_path):
+    doc = fitz.open(file_path)
+    for page in doc:
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        st.image(img)
 
-
-
-def show_pdf_as_images(pdf_path):
-    # Convert PDF to images
-    images = convert_from_path(pdf_path, dpi=150, poppler_path="/usr/bin")
-    for i, img in enumerate(images):
-        st.image(img, caption=f"Page {i+1}")
 
 def course_recommender(course_list):
     st.subheader("**Courses & Certificates🎓 Recommendations**")
@@ -184,23 +181,16 @@ def run():
       
     uploaded_file = st.file_uploader("Choose your Resume", type=["pdf"])
     if uploaded_file is not None:
-    # Save uploaded file
-        save_dir = './Uploaded_Resumes/'
-        os.makedirs(save_dir, exist_ok=True)
-        save_image_path = os.path.join(save_dir, uploaded_file.name)
-    
+        # with st.spinner('Uploading your Resume....'):
+        #     time.sleep(4)
+        save_image_path = './Uploaded_Resumes/' + uploaded_file.name
         with open(save_image_path, "wb") as f:
-           f.write(uploaded_file.getbuffer())
-
-    # Show uploaded PDF as images
-        show_pdf_as_images(save_image_path)
+            f.write(uploaded_file.getbuffer())
+        show_pdf(save_image_path)
 
         original_spacy_load = spacy.load
         # Monkey patch only inside pyresparser
-      
-        # Monkey patch only inside pyresparser
         pyresparser.resume_parser.spacy.load = lambda name: original_spacy_load("sections/models/en_core_web_sm/en_core_web_sm-2.3.1")
-
         
         resume_data = ResumeParser(save_image_path).get_extracted_data()
         if resume_data:
