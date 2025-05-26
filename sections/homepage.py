@@ -135,17 +135,49 @@ def analyze_resume(resume_text):
         "suggestions": suggestions
         }
 
-connection = sqlite3.connect("resume_parser.db",check_same_thread=False)
+connection = sqlite3.connect("resume_parser.db", check_same_thread=False)
 cursor = connection.cursor()
 
-
-def insert_data(name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills,
-                courses):
+# ✅ Create table if not exists
+def create_table():
     DB_table_name = 'user_data'
-    insert_sql = f"INSERT INTO {DB_table_name} VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {DB_table_name} (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name TEXT,
+            Email_ID TEXT,
+            resume_score TEXT NOT NULL,
+            Timestamp TEXT NOT NULL,
+            Page_no TEXT NOT NULL,
+            Predicted_Field TEXT NOT NULL,
+            User_level TEXT NOT NULL,
+            Actual_skills TEXT NOT NULL,
+            Recommended_skills TEXT NOT NULL,
+            Recommended_courses TEXT NOT NULL
+        );
+    """
+    cursor.execute(table_sql)
+    connection.commit()
+
+# ✅ Insert data function
+def insert_data(name, email, res_score, timestamp, no_of_pages, reco_field, cand_level, skills, recommended_skills, courses):
+    DB_table_name = 'user_data'
+    
+    # Convert list/dict to string to avoid errors
+    if isinstance(skills, list): skills = ', '.join(skills)
+    if isinstance(recommended_skills, list): recommended_skills = ', '.join(recommended_skills)
+    if isinstance(courses, list): courses = ', '.join(courses)
+
+    insert_sql = f"""
+        INSERT INTO {DB_table_name}
+        (Name, Email_ID, resume_score, Timestamp, Page_no, Predicted_Field, User_level, Actual_skills, Recommended_skills, Recommended_courses)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
     rec_values = (
-    name, email, str(res_score), timestamp, str(no_of_pages), reco_field, cand_level, skills, recommended_skills,
-    courses)
+        name, email, str(res_score), timestamp,
+        str(no_of_pages), reco_field, cand_level,
+        skills, recommended_skills, courses
+    )
     cursor.execute(insert_sql, rec_values)
     connection.commit()
 
@@ -159,25 +191,7 @@ def run():
 
 
     # Create table
-    DB_table_name = 'user_data'
-
-    table_sql = f"""
-                CREATE TABLE IF NOT EXISTS {DB_table_name} (
-                ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name TEXT,
-                Email_ID TEXT,
-                resume_score TEXT NOT NULL,
-                Timestamp TEXT NOT NULL,
-                Page_no TEXT NOT NULL,
-                Predicted_Field TEXT NOT NULL,
-                User_level TEXT NOT NULL,
-                Actual_skills TEXT NOT NULL,
-                Recommended_skills TEXT NOT NULL,
-                Recommended_courses TEXT NOT NULL
-                );
-                """
-
-    cursor.execute(table_sql)
+    create_table()
       
     uploaded_file = st.file_uploader("Choose your Resume", type=["pdf"])
     if uploaded_file is not None:
@@ -397,7 +411,7 @@ def run():
             st.warning(
                 "** Note: This score is calculated based on the content that you have added in your Resume. **")
 
-            insert_data(resume_data['name'], resume_data['email'], str(analysis_result['score']), timestamp,
+            insert_data(resume_data['name'] or "N/A", resume_data['email'] or "N/A", str(analysis_result['score']), timestamp,
                         str(resume_data['no_of_pages']), reco_field, cand_level, str(resume_data['skills']),
                         str(recommended_skills), str(rec_course))
 
