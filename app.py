@@ -3,12 +3,6 @@ from sections import grammar_checker, homepage,ats_check,jobs,admin_panel
 import spacy
 import subprocess
 
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
-
 
 st.set_page_config(page_title="Resume Analyzer", layout="wide",page_icon="🤖")
 
