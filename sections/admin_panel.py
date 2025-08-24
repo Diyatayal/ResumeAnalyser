@@ -28,8 +28,8 @@ def run():
     ad_password = st.text_input("Password", type='password')
     
     if st.button('Login'):
-        if ad_user == 'nihal_bro' and ad_password == 'test123':
-            st.success("Welcome Nihal")
+        if ad_user == 'diyatayal' and ad_password == 'test123':
+            st.success("Welcome Diya")
             # Display Data
             cursor.execute('''SELECT*FROM user_data''')
             data = cursor.fetchall()
